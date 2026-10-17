@@ -6,7 +6,7 @@ from agent.core.config import get_settings
 settings = get_settings()
 
 
-def init__db() -> None:
+def init_db() -> None:
     conn = sqlite3.connect(settings.audit_db_path)
     conn.execute("""CREATE TABLE IF NOT EXISTS query_audit (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

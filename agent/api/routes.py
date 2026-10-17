@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header
 
@@ -10,6 +11,7 @@ from agent.services.ingestion import load_file, chunk_documents, SUPPORTED
 
 router = APIRouter(prefix="/api")
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -35,7 +37,11 @@ def chat(payload: ChatRequest):
             "rewritten_query": result.get("current_query", payload.question),
         }
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        logger.exception("Chat request failed")
+        raise HTTPException(
+            status_code=502,
+            detail="The assistant is temporarily unavailable. Please try again shortly.",
+        ) from exc
 
 
 @router.post("/ingest")
