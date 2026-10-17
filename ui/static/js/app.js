@@ -111,8 +111,27 @@ async function askAgent(q) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: q }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Request failed");
+    const body = await res.text();
+    let data = {};
+    if (body) {
+      try {
+        data = JSON.parse(body);
+      } catch {
+        if (res.ok) {
+          throw new Error("The assistant returned an invalid response. Please try again.");
+        }
+      }
+    }
+    if (!res.ok) {
+      const message =
+        typeof data.detail === "string"
+          ? data.detail
+          : `The assistant service is temporarily unavailable (HTTP ${res.status}). Please try again shortly.`;
+      throw new Error(message);
+    }
+    if (typeof data.answer !== "string" || !data.answer.trim()) {
+      throw new Error("The assistant returned an empty answer. Please try again.");
+    }
     hideTyping();
     addMessage(
       "assistant",
@@ -124,8 +143,12 @@ async function askAgent(q) {
     sourceUsed.textContent = data.source_used;
   } catch (e) {
     hideTyping();
-    addMessage("assistant", `Error: ${e.message}`);
-    renderTrace(["Request failed"]);
+    const message =
+      e instanceof Error
+        ? e.message
+        : "The request failed. Please try again.";
+    addMessage("assistant", message);
+    renderTrace(["Request failed. Please retry in a moment."]);
     sourceUsed.textContent = "Error";
   } finally {
     btn.disabled = false;
