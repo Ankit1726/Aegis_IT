@@ -361,7 +361,7 @@ If you find Aegis useful or interesting:
 
 <div align="center">
 
-### ***Aegis 🛡️✨***
+### ***Aegis IT: Complete Compnay IT Support Assistant System 🛡️***
 
 ***Ask Privately. Verify Smartly. Answer with Evidence.***
 
