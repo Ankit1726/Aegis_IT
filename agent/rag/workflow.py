@@ -34,6 +34,11 @@ def add_trace(state: AgentState, message: str):
     return [*state.get("trace", []), message]
 
 
+def source_label(source: object) -> str:
+    normalized = str(source or "Private KB").replace("\\", "/")
+    return normalized.rsplit("/", 1)[-1] or "Private KB"
+
+
 def route_question(state: AgentState):
     router = llm().with_structured_output(RouteDecision, method="json_mode")
     decision = router.invoke(f"""
@@ -164,7 +169,7 @@ def rewrite_query(state: AgentState):
 
 def generate_from_kb(state: AgentState):
     context = "\n\n".join(
-        f"[Source: {d.metadata.get('source','unknown')}]\n{d.page_content}"
+        f"[Source: {source_label(d.metadata.get('source'))}]\n{d.page_content}"
         for d in state["kb_docs"]
     )
     answer = llm().invoke(f"""
@@ -176,12 +181,10 @@ def generate_from_kb(state: AgentState):
     citations = []
     seen = set()
     for d in state["kb_docs"]:
-        src = d.metadata.get("source", "Private KB")
+        src = source_label(d.metadata.get("source"))
         if src not in seen:
             seen.add(src)
-            citations.append(
-                {"title": src.split("/")[-1], "url": "", "type": "private_kb"}
-            )
+            citations.append({"title": src, "url": "", "type": "private_kb"})
     return {
         "answer": answer,
         "source_used": "private_kb",
