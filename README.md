@@ -210,7 +210,8 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 4. Configure environment variables
-cp .env.example .env            # then add your API keys
+cp .env.example .env            # PowerShell: Copy-Item .env.example .env
+# Add GROQ_API_KEY, TAVILY_API_KEY, PINECONE_API_KEY, and a unique ADMIN_API_KEY
 
 # 5. Ingest the sample knowledge base
 python ingest_sample_knowledge.py
@@ -223,8 +224,13 @@ uvicorn agent.main:app --reload
 
 ```bash
 docker build -t aegis .
-docker run -p 8000:8000 --env-file .env aegis
+docker run -p 8000:8080 --env-file .env aegis
 ```
+
+The container listens on port `8080`; the command above exposes it locally at
+`http://localhost:8000`. Keep `.env` private. The embedding model must match
+the configured Pinecone index dimension; the default MiniLM model produces
+384-dimensional vectors.
 
 ---
 

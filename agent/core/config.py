@@ -12,10 +12,12 @@ class Settings(BaseSettings):
     pinecone_api_key: str = ""
     pinecone_index_name: str = "fde-it-support-rag"
     pinecone_namespace: str = "company-it-kb"
-    embedding_model: str = "text-embedding-3-small"
+    embedding_model: str = "all-MiniLM-L6-v2"
     groq_model: str = "openai/gpt-oss-120b"
+    llm_timeout_seconds: float = 10
+    tavily_timeout_seconds: float = 8
     top_k: int = 4
-    max_retries: int = 1
+    max_retries: int = 0
     admin_api_key: str = "change-me"
     audit_db_path: str = str(BASE_DIR / "data" / "audit.db")
     upload_dir: str = str(BASE_DIR / "uploads")

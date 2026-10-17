@@ -1,6 +1,7 @@
+import os
 import time
+
 from pinecone import Pinecone, ServerlessSpec
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from agent.core.config import get_settings
 
@@ -45,9 +46,37 @@ def get_embedding_dimension(model_name: str | None = None) -> int:
 def get_embeddings():
     global _embeddings
     if _embeddings is None:
-        # Using a free, open-source local model via HuggingFace
         model_name = getattr(settings, "embedding_model", None) or "all-MiniLM-L6-v2"
-        _embeddings = HuggingFaceEmbeddings(model_name=model_name)
+        normalized_model_name = model_name.lower()
+        if normalized_model_name in {
+            "all-minilm",
+            "all-minilm-l6-v2",
+            "sentence-transformers/all-minilm-l6-v2",
+        }:
+            from fastembed import TextEmbedding
+            from langchain_core.embeddings import Embeddings
+
+            class FastEmbedAdapter(Embeddings):
+                def __init__(self, model: TextEmbedding):
+                    self.model = model
+
+                def embed_documents(self, texts: list[str]) -> list[list[float]]:
+                    return [vector.tolist() for vector in self.model.embed(texts)]
+
+                def embed_query(self, text: str) -> list[float]:
+                    return self.embed_documents([text])[0]
+
+            _embeddings = FastEmbedAdapter(
+                TextEmbedding(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2",
+                    cache_dir=os.getenv("FASTEMBED_CACHE_PATH"),
+                    threads=1,
+                )
+            )
+        else:
+            from langchain_huggingface import HuggingFaceEmbeddings
+
+            _embeddings = HuggingFaceEmbeddings(model_name=model_name)
     return _embeddings
 
 
@@ -66,11 +95,11 @@ def ensure_index():
             current_dimension = index_info.get("dimension")
 
         if current_dimension is not None and current_dimension != desired_dimension:
-            pc.delete_index(name=settings.pinecone_index_name)
-            while settings.pinecone_index_name in [
-                x["name"] for x in pc.list_indexes()
-            ]:
-                time.sleep(1)
+            raise RuntimeError(
+                f"Pinecone index '{settings.pinecone_index_name}' has dimension "
+                f"{current_dimension}, but embedding model '{settings.embedding_model}' "
+                f"requires {desired_dimension}. The existing index was left unchanged."
+            )
 
     if settings.pinecone_index_name not in [x["name"] for x in pc.list_indexes()]:
         pc.create_index(

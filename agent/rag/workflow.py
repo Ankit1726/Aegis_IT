@@ -1,7 +1,9 @@
 import logging
+from time import perf_counter
 from typing import Literal
+
+import requests
 from langchain_groq import ChatGroq
-from langchain_tavily import TavilySearch
 from langgraph.graph import StateGraph, START, END
 from agent.core.config import get_settings
 from agent.rag.state import AgentState, RouteDecision, EvidenceGrade
@@ -11,32 +13,21 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 __llm = None
-_web_search = None
 
 
 def llm():
+    global __llm
     if __llm is None:
         if not settings.groq_api_key:
             raise RuntimeError("GROQ_API_KEY is missing")
-        _llm = ChatGroq(
-            model=settings.groq_model, temperature=0.2, api_key=settings.groq_api_key
+        __llm = ChatGroq(
+            model=settings.groq_model,
+            temperature=0.2,
+            api_key=settings.groq_api_key,
+            timeout=settings.llm_timeout_seconds,
+            max_retries=0,
         )
-    return _llm
-
-
-def web_search_tool():
-    global _web_search
-    if _web_search is None:
-        if not settings.tavily_api_key:
-            raise RuntimeError("TAVILY_API_KEY is missing")
-        _web_search = TavilySearch(
-            tavily_api_key=settings.tavily_api_key,
-            max_results=5,
-            topic="general",
-            include_answer=True,
-            include_raw_content=False,
-        )
-    return _web_search
+    return __llm
 
 
 def add_trace(state: AgentState, message: str):
@@ -95,7 +86,23 @@ def after_kb(state: AgentState) -> Literal["generate_from_kb", "search_web"]:
 
 
 def search_web(state: AgentState):
-    result = web_search_tool().invoke({"query": state["current_query"]})
+    if not settings.tavily_api_key:
+        raise RuntimeError("TAVILY_API_KEY is missing")
+    response = requests.post(
+        "https://api.tavily.com/search",
+        headers={"Authorization": f"Bearer {settings.tavily_api_key}"},
+        json={
+            "query": state["current_query"],
+            "max_results": 5,
+            "search_depth": "fast",
+            "topic": "general",
+            "include_answer": True,
+            "include_raw_content": False,
+        },
+        timeout=settings.tavily_timeout_seconds,
+    )
+    response.raise_for_status()
+    result = response.json()
     lines, citations = [], []
     if isinstance(result, dict):
         if result.get("answer"):
@@ -278,4 +285,8 @@ def ask(question: str):
         "trace": [],
         "citations": [],
     }
-    return agent_graph.invoke(initial)
+    started_at = perf_counter()
+    try:
+        return agent_graph.invoke(initial)
+    finally:
+        logger.info("Chat workflow finished in %.2f seconds", perf_counter() - started_at)
