@@ -38,9 +38,7 @@
 
 ### ***🌐 Live Demo***
 
-🚀 ***Web Application 👉 [Aegis – IT Support Agentic RAG](https://aegis-it.onrender.com/)***
-
-> ℹ️ Hosted on Render. If the service has been idle, the first request may take a short while to wake up.
+***Web Application 👉 [Aegis – IT Support Agentic RAG](https://aegis-it.onrender.com/)***
 
 ---
 
