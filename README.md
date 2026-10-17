@@ -45,7 +45,7 @@
 ### ***📸 Project Preview***
 
 <p align="center">
-<img src="./preview/ui.png" width="100%" alt="Aegis UI Preview">
+<img src="./preview/image.png" width="100%" alt="Aegis UI Preview">
 </p>
 
 ---
